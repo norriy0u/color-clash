@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ColorClash - Speed Color Matching</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+:root{--bg:#0c0c1d;--card:rgba(16,16,35,.92);--accent:#10b981;--wrong:#ef4444;--text:#e4e4e7;--dim:#52525b;--font:'Poppins',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text);user-select:none}
+.screen{position:fixed;inset:0;display:none;justify-content:center;align-items:center;z-index:10;padding:20px}
+.screen.active{display:flex}
+#game-screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.card{background:var(--card);backdrop-filter:blur(20px);border:1px solid rgba(16,185,129,.12);border-radius:18px;padding:36px 40px;text-align:center;max-width:460px;width:90%;animation:pop .5s ease}
+@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.badge{display:inline-block;padding:5px 14px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:20px;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+h1{font-size:2.6rem;font-weight:900;margin-bottom:8px}
+h1 span{color:var(--accent)}
+.sub{color:var(--dim);font-size:.9rem;margin-bottom:24px;line-height:1.5}
+.hint{font-size:.65rem;color:var(--dim);margin-top:12px}
+.play-btn{padding:14px 40px;background:var(--accent);color:white;border:none;border-radius:12px;font-family:var(--font);font-size:1rem;font-weight:700;cursor:pointer;transition:all .3s;box-shadow:0 4px 15px rgba(16,185,129,.25)}
+.play-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(16,185,129,.35)}
+/* HUD */
+.hud{display:flex;gap:24px;margin-bottom:24px;z-index:10}
+.hud-item{display:flex;flex-direction:column;align-items:center;padding:10px 20px;background:var(--card);border:1px solid rgba(255,255,255,.04);border-radius:10px;min-width:80px}
+.hud-lbl{font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.hud-val{font-size:1.4rem;font-weight:800;color:var(--accent);margin-top:2px}
+/* Game Area */
+.target-area{z-index:10;text-align:center;margin-bottom:20px}
+.prompt{font-size:.9rem;color:var(--dim);margin-bottom:10px}
+.target-swatch{width:120px;height:120px;border-radius:20px;margin:0 auto;border:3px solid rgba(255,255,255,.08);box-shadow:0 8px 30px rgba(0,0,0,.3);transition:all .3s}
+.target-label{margin-top:8px;font-size:.75rem;color:var(--dim)}
+.options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:360px;width:100%;z-index:10}
+.option-btn{aspect-ratio:1;border-radius:16px;border:3px solid rgba(255,255,255,.06);cursor:pointer;transition:all .2s;min-height:80px}
+.option-btn:hover{transform:scale(1.05);border-color:rgba(255,255,255,.15)}
+.option-btn:active{transform:scale(.95)}
+.option-btn.correct{border-color:var(--accent)!important;box-shadow:0 0 20px rgba(16,185,129,.4);animation:correctPulse .4s ease}
+@keyframes correctPulse{50%{transform:scale(1.1)}}
+.option-btn.wrong{border-color:var(--wrong)!important;animation:shake .3s ease}
+@keyframes shake{20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+/* Timer bar */
+.timer-bar{width:100%;max-width:360px;height:6px;background:rgba(255,255,255,.04);border-radius:3px;margin-top:16px;overflow:hidden;z-index:10}
+.timer-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .1s linear}
+/* Results */
+.res-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:20px 0}
+.res-item{padding:14px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);border-radius:10px;text-align:center}
+.res-val{font-size:1.6rem;font-weight:800;color:var(--accent)}
+.res-lbl{font-size:.6rem;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-top:2px}
+.streak-display{padding:10px 20px;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.1);border-radius:10px;margin-bottom:20px;font-size:.85rem;color:var(--accent)}
+@media(max-width:600px){h1{font-size:1.8rem}.card{padding:24px 20px}.target-swatch{width:90px;height:90px;border-radius:16px}.options{gap:8px;max-width:280px}.option-btn{min-height:60px;border-radius:12px}.hud{gap:12px}.hud-item{padding:8px 14px;min-width:60px}.hud-val{font-size:1.1rem}}
+    </style>
+</head>
+<body>
+    <audio id="bg-audio" loop preload="none">
+        <source src="https://cdn.pixabay.com/audio/2023/10/07/audio_18af5765f0.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="intro-screen" class="screen active">
+        <div class="card">
+            <div class="badge">VishwaNova 2026 • Games</div>
+            <h1>Color<span>Clash</span></h1>
+            <p class="sub">Match the target color as fast as you can! 20 rounds of pure color-matching speed. How sharp are your eyes?</p>
+            <button id="start-btn" class="play-btn">🎨 Play Now</button>
+            <p class="hint">🎵 Background music • 20 rounds</p>
+        </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="hud">
+            <div class="hud-item"><span class="hud-lbl">Score</span><span class="hud-val" id="score">0</span></div>
+            <div class="hud-item"><span class="hud-lbl">Round</span><span class="hud-val" id="round">1/20</span></div>
+            <div class="hud-item"><span class="hud-lbl">Streak</span><span class="hud-val" id="streak">0🔥</span></div>
+        </div>
+        <div class="target-area">
+            <p class="prompt">Match this color!</p>
+            <div class="target-swatch" id="target-swatch"></div>
+            <p class="target-label" id="target-name"></p>
+        </div>
+        <div class="options" id="options"></div>
+        <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
+
+    <div id="results-screen" class="screen">
+        <div class="card">
+            <h2 style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:4px">Game Over!</h2>
+            <div class="res-grid">
+                <div class="res-item"><span class="res-val" id="f-score">0</span><span class="res-lbl">Score</span></div>
+                <div class="res-item"><span class="res-val" id="f-correct">0</span><span class="res-lbl">Correct</span></div>
+                <div class="res-item"><span class="res-val" id="f-streak">0</span><span class="res-lbl">Max Streak</span></div>
+            </div>
+            <div class="streak-display" id="rank-display">🎯 Calculating...</div>
+            <button id="retry-btn" class="play-btn">🔄 Play Again</button>
+        </div>
+    </div>
+
+    <script>
+const bgAudio=document.getElementById('bg-audio');
+const namedColors=[
+    {name:'Crimson',hex:'#DC143C'},{name:'Ocean Blue',hex:'#0077BE'},{name:'Emerald',hex:'#50C878'},
+    {name:'Golden',hex:'#FFD700'},{name:'Coral',hex:'#FF7F50'},{name:'Lavender',hex:'#B57EDC'},
+    {name:'Teal',hex:'#008080'},{name:'Salmon',hex:'#FA8072'},{name:'Indigo',hex:'#4B0082'},
+    {name:'Lime',hex:'#32CD32'},{name:'Magenta',hex:'#FF00FF'},{name:'Amber',hex:'#FFBF00'},
+    {name:'Mint',hex:'#98FF98'},{name:'Plum',hex:'#8E4585'},{name:'Rose',hex:'#FF007F'},
+    {name:'Slate',hex:'#708090'},{name:'Turquoise',hex:'#40E0D0'},{name:'Scarlet',hex:'#FF2400'},
+    {name:'Peach',hex:'#FFDAB9'},{name:'Navy',hex:'#000080'},{name:'Olive',hex:'#808000'},
+    {name:'Burgundy',hex:'#800020'},{name:'Tangerine',hex:'#FF9966'},{name:'Periwinkle',hex:'#CCCCFF'},
+    {name:'Chartreuse',hex:'#7FFF00'},{name:'Mauve',hex:'#E0B0FF'},{name:'Rust',hex:'#B7410E'},
+    {name:'Ivory',hex:'#FFFFF0'},{name:'Jade',hex:'#00A86B'},{name:'Orchid',hex:'#DA70D6'}
+];
+
+const TOTAL_ROUNDS=20,TIME_PER_ROUND=4000;
+let currentRound=0,score=0,streak=0,maxStreak=0,correct=0,timer=null,timeLeft=0,answered=false;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+
+function startGame(){
+    currentRound=0;score=0;streak=0;maxStreak=0;correct=0;
+    document.getElementById('score').textContent='0';
+    document.getElementById('streak').textContent='0🔥';
+    showScreen('game-screen');
+    bgAudio.volume=.3;bgAudio.play().catch(()=>{});
+    nextRound();
+}
+
+function nextRound(){
+    if(currentRound>=TOTAL_ROUNDS){endGame();return}
+    currentRound++;answered=false;
+    document.getElementById('round').textContent=`${currentRound}/${TOTAL_ROUNDS}`;
+
+    // Pick target and options
+    const all=shuffle([...namedColors]);
+    const target=all[0];
+    const wrong=all.slice(1,6);// 5 wrong + 1 correct = 6 options
+    const options=shuffle([target,...wrong.slice(0,5)]);
+
+    document.getElementById('target-swatch').style.background=target.hex;
+    document.getElementById('target-name').textContent=target.name;
+
+    const container=document.getElementById('options');
+    container.innerHTML='';
+    options.forEach(opt=>{
+        const btn=document.createElement('div');
+        btn.className='option-btn';
+        btn.style.background=opt.hex;
+        btn.addEventListener('click',()=>handleAnswer(btn,opt.hex===target.hex));
+        container.appendChild(btn);
+    });
+
+    // Timer
+    timeLeft=TIME_PER_ROUND;
+    document.getElementById('timer-fill').style.width='100%';
+    clearInterval(timer);
+    const startTime=Date.now();
+    timer=setInterval(()=>{
+        const elapsed=Date.now()-startTime;
+        const pct=Math.max(0,1-elapsed/TIME_PER_ROUND)*100;
+        document.getElementById('timer-fill').style.width=pct+'%';
+        if(pct<=30)document.getElementById('timer-fill').style.background='#ef4444';
+        else document.getElementById('timer-fill').style.background='var(--accent)';
+        if(elapsed>=TIME_PER_ROUND){clearInterval(timer);if(!answered){streak=0;document.getElementById('streak').textContent=streak+'🔥';setTimeout(nextRound,500)}}
+    },50);
+}
+
+function handleAnswer(btn,isCorrect){
+    if(answered)return;
+    answered=true;clearInterval(timer);
+    if(isCorrect){
+        btn.classList.add('correct');
+        correct++;streak++;
+        if(streak>maxStreak)maxStreak=streak;
+        const timeBonus=Math.round((timeLeft/TIME_PER_ROUND)*50);
+        const streakBonus=streak*5;
+        score+=100+timeBonus+streakBonus;
+    }else{
+        btn.classList.add('wrong');
+        streak=0;
+        // Highlight correct
+        document.querySelectorAll('.option-btn').forEach(b=>{
+            if(b.style.background===document.getElementById('target-swatch').style.background)b.classList.add('correct');
+        });
+    }
+    document.getElementById('score').textContent=score;
+    document.getElementById('streak').textContent=streak+'🔥';
+    setTimeout(nextRound,800);
+}
+
+function endGame(){
+    showScreen('results-screen');
+    document.getElementById('f-score').textContent=score;
+    document.getElementById('f-correct').textContent=`${correct}/${TOTAL_ROUNDS}`;
+    document.getElementById('f-streak').textContent=maxStreak;
+    let rank='🔰 Color Blind';
+    if(correct>=5)rank='🎨 Color Student';
+    if(correct>=10)rank='🖌️ Color Master';
+    if(correct>=15)rank='👁️ Eagle Eye';
+    if(correct>=19)rank='🏆 Chromatic God';
+    document.getElementById('rank-display').textContent=rank;
+}
+
+document.getElementById('start-btn').addEventListener('click',startGame);
+document.getElementById('retry-btn').addEventListener('click',startGame);
+    </script>
+</body>
+</html>
